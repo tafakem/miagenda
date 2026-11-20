@@ -24,10 +24,12 @@ import {
   Clock,
   Layers,
   Search,
-  TrendingUp
+  TrendingUp,
+  Filter
 } from 'lucide-react';
 
 type Priority = 'Baja' | 'Media' | 'Alta';
+type PriorityFilter = 'Todas' | Priority;
 
 interface Activity {
   id: number;
@@ -56,6 +58,7 @@ export default function App() {
   const [inputDate, setInputDate] = useState(getTodayString());
   const [inputPriority, setInputPriority] = useState<Priority>('Media');
   const [searchQuery, setSearchQuery] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('Todas');
   const [errorMessage, setErrorMessage] = useState('');
   
   // Edit state
@@ -129,9 +132,11 @@ export default function App() {
   };
 
   // Filtered and sorted tasks
-  const filteredTasks = tasks.filter(t => 
-    t.text.toLowerCase().includes(searchQuery.toLowerCase().trim())
-  );
+  const filteredTasks = tasks.filter(t => {
+    const matchesSearch = t.text.toLowerCase().includes(searchQuery.toLowerCase().trim());
+    const matchesPriority = priorityFilter === 'Todas' || t.priority === priorityFilter;
+    return matchesSearch && matchesPriority;
+  });
 
   const pendingTasks = filteredTasks
     .filter(t => !t.isCompleted)
@@ -141,7 +146,7 @@ export default function App() {
     .filter(t => t.isCompleted)
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // Progress metrics
+  // Progress metrics (based on total tasks)
   const totalTasks = tasks.length;
   const completedCount = tasks.filter(t => t.isCompleted).length;
   const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
@@ -204,18 +209,25 @@ export default function App() {
     "fun MiAgendaScreen() {",
     "    var textInput by remember { mutableStateOf(\"\") }",
     "    var searchQuery by remember { mutableStateOf(\"\") }",
+    "    var priorityFilter by remember { mutableStateOf(\"Todas\") }",
     "    var activities = remember { mutableStateListOf<ActivityItem>() }",
     "",
-    "    val total = activities.size",
-    "    val completed = activities.count { it.isCompleted }",
-    "    val progress = if (total > 0) (completed * 100) / total else 0",
+    "    val filteredTasks = activities.filter {",
+    "        it.text.contains(searchQuery, ignoreCase = true) &&",
+    "        (priorityFilter == \"Todas\" || it.priority == priorityFilter)",
+    "    }",
     "",
     "    Scaffold(",
     "        topBar = { TopAppBar(title = { Text(\"Mi Agenda\") }) }",
     "    ) { padding ->",
     "        Column(modifier = Modifier.padding(padding).padding(16.dp)) {",
-    "            LinearProgressIndicator(progress = progress / 100f, modifier = Modifier.fillMaxWidth())",
-    "            Text(\"Progreso: $progress%\")",
+    "            OutlinedTextField(",
+    "                value = searchQuery,",
+    "                onValueChange = { searchQuery = it },",
+    "                label = { Text(\"Buscar actividad...\") },",
+    "                modifier = Modifier.fillMaxWidth()",
+    "            )",
+    "            // Chips de prioridad y lista filtrada",
     "        }",
     "    }",
     "}"
@@ -370,7 +382,7 @@ export default function App() {
               </form>
             </div>
 
-            {/* Scrollable Task Lists Area with Summary Progress Card & Search Bar */}
+            {/* Scrollable Task Lists Area with Summary Card, Search Bar & Priority Filter Chips */}
             <div className="flex-1 overflow-y-auto p-3.5 space-y-3 custom-scrollbar bg-slate-950">
               
               {/* Summary Progress Card */}
@@ -421,6 +433,24 @@ export default function App() {
                 )}
               </div>
 
+              {/* Priority Filter Chips */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+                {(['Todas', 'Alta', 'Media', 'Baja'] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPriorityFilter(p)}
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all shrink-0 ${
+                      priorityFilter === p
+                        ? 'bg-indigo-600 text-white shadow-sm font-semibold'
+                        : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+
               {tasks.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500 bg-slate-900/30 rounded-2xl border border-slate-800/60 my-auto">
                   <Layers className="w-10 h-10 mb-2 stroke-1 text-slate-600" />
@@ -429,7 +459,7 @@ export default function App() {
                 </div>
               ) : filteredTasks.length === 0 ? (
                 <div className="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-6 text-center text-xs text-slate-400 my-auto">
-                  🔍 No se encontraron actividades con "{searchQuery}".
+                  🔍 No se encontraron actividades con los filtros aplicados.
                 </div>
               ) : (
                 <>
@@ -694,6 +724,7 @@ export default function App() {
                   ]);
                   setEditingId(null);
                   setSearchQuery('');
+                  setPriorityFilter('Todas');
                   setErrorMessage('');
                 }}
                 className="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1 py-0.5 transition-colors"
@@ -741,13 +772,13 @@ export default function App() {
             
             <div className="space-y-3 text-xs leading-relaxed">
               <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-1">
-                <span className="font-semibold text-indigo-400 text-xs">1. Tarjeta de Resumen con Progreso</span>
-                <p className="text-slate-400">Se añadió una tarjeta superior con barra de progreso visual que calcula en tiempo real el porcentaje de tareas completadas.</p>
+                <span className="font-semibold text-indigo-400 text-xs">1. Selector de Filtros por Prioridad (Chips)</span>
+                <p className="text-slate-400">Se añadieron botones tipo chip (*Todas*, *Alta*, *Media*, *Baja*) debajo de la barra de búsqueda para filtrar instantáneamente las actividades según su nivel de prioridad.</p>
               </div>
 
               <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl space-y-1">
-                <span className="font-semibold text-indigo-400 text-xs">2. Cálculo en Jetpack Compose</span>
-                <p className="text-slate-400">En el código Kotlin puedes ver cómo se calcula el porcentaje de avance usando <code className="text-indigo-300 font-mono">(completed * 100) / total</code> y se muestra con <code className="text-indigo-300 font-mono">LinearProgressIndicator</code>.</p>
+                <span className="font-semibold text-indigo-400 text-xs">2. Lógica de Filtrado Combinado</span>
+                <p className="text-slate-400">En el código Kotlin puedes ver cómo se combinan la búsqueda por texto y la selección de chips de prioridad usando operadores lógicos en Jetpack Compose.</p>
               </div>
             </div>
           </div>
