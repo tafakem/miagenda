@@ -1,0 +1,6 @@
+{
+  "name": "Mi Agenda",
+  "description": "Aplicación Android en Kotlin y Jetpack Compose para principiantes",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
